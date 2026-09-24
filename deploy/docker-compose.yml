@@ -1,0 +1,152 @@
+version: '3.9'
+
+services:
+  # ─────────────────────────────────────────────
+  # TimescaleDB (PostgreSQL + time-series extension)
+  # ─────────────────────────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: kifaa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kifaa}
+      POSTGRES_USER: ${POSTGRES_USER:-kifaa}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./server/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kifaa} -d ${POSTGRES_DB:-kifaa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────────────
+  # Redis (cache, pub/sub, task queue)
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: kifaa-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # FastAPI Backend
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kifaa-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kifaa}
+      POSTGRES_DB: ${POSTGRES_DB:-kifaa}
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./server:/app
+      - ./agent/builds:/app/static/agent-builds
+      - ./data/backups:/app/backups
+      - ./data/logs:/app/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  # ─────────────────────────────────────────────
+  # Celery Worker (background tasks)
+  # ─────────────────────────────────────────────
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kifaa-worker
+    restart: unless-stopped
+    command: celery -A api.workers.celery_app worker --loglevel=info --concurrency=4
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kifaa}
+      POSTGRES_DB: ${POSTGRES_DB:-kifaa}
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./server:/app
+      - ./data/backups:/app/backups
+      - ./data/logs:/app/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Celery Beat (scheduler)
+  # ─────────────────────────────────────────────
+  beat:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kifaa-beat
+    restart: unless-stopped
+    command: celery -A api.workers.celery_app beat --loglevel=info
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kifaa}
+      POSTGRES_DB: ${POSTGRES_DB:-kifaa}
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./server:/app
+    depends_on:
+      - redis
+      - timescaledb
+
+  # ─────────────────────────────────────────────
+  # React Frontend (Vite / Tailwind)
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    container_name: kifaa-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  # ─────────────────────────────────────────────
+  # Nginx (reverse proxy + optional TLS termination)
+  # ─────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: kifaa-nginx
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./agent/builds:/usr/share/nginx/html/downloads:ro
+    depends_on:
+      - api
+      - frontend

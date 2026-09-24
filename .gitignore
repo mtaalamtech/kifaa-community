@@ -1,0 +1,71 @@
+# Secrets — never commit
+secrets/
+ssl/
+.env
+
+# Runtime data volumes
+data/
+
+# Claude Code session files
+.claude/
+.playwright-mcp/
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+
+# Agent compiled binaries (all locations)
+agent/builds/*.exe
+agent/builds/*.msi
+agent/builds/kifaa-agent-linux*
+agent/builds/kifaa-agent-windows*
+agent/builds/kifaa-installer*
+agent/modern/kifaa-agent*
+agent/modern/*.exe
+agent/remote/*.exe
+builds/
+server/downloads/kifaa-agent*
+server/downloads/*.exe
+# Keep the builds directory and install scripts
+!agent/builds/.gitkeep
+!agent/builds/*.sh
+!agent/builds/*.ps1
+
+# Runtime / generated files
+server/celerybeat-schedule
+server/kifaa.db
+server/api/static/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+.env.local
+
+# Go build artifacts
+*.test
+*.out
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Docker
+*.log
+
+# Images used for docs (keep if needed, ignore large ones)
+*.png
+*.jpg
+*.jpeg
+!login-page.png
+
+# WhatsApp session (runtime data)
+whatsapp/session/

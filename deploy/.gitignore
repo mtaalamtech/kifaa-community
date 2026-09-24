@@ -1,0 +1,50 @@
+# Environment & secrets
+.env
+secrets/
+*.key
+*.pem
+*.p12
+
+# SSL certificates (generated locally)
+ssl/certs/
+ssl/private/
+
+# Data directories (generated at runtime)
+data/
+
+# Agent binaries (built separately)
+agent/builds/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Go build artifacts
+agent/*.exe
+agent/kifaa-agent
+agent/kifaa-agent-*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml

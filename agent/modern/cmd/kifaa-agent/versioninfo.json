@@ -1,0 +1,43 @@
+{
+    "FixedFileInfo": {
+        "FileVersion": {
+            "Major": 1,
+            "Minor": 4,
+            "Patch": 2,
+            "Build": 0
+        },
+        "ProductVersion": {
+            "Major": 1,
+            "Minor": 4,
+            "Patch": 2,
+            "Build": 0
+        },
+        "FileFlagsMask": "3f",
+        "FileFlags": "00",
+        "FileOS": "040004",
+        "FileType": "01",
+        "FileSubType": "00"
+    },
+    "StringFileInfo": {
+        "Comments": "Kifaa Endpoint Agent for Windows",
+        "CompanyName": "Kenyanut Systems",
+        "FileDescription": "Kifaa Endpoint Monitoring and Management Agent",
+        "FileVersion": "1.4.2.0",
+        "InternalName": "kifaa-agent",
+        "LegalCopyright": "Copyright \u00a9 2024 Kenyanut Systems. All rights reserved.",
+        "LegalTrademarks": "",
+        "OriginalFilename": "kifaa-agent.exe",
+        "PrivateBuild": "",
+        "ProductName": "Kifaa Agent",
+        "ProductVersion": "1.4.2.0",
+        "SpecialBuild": ""
+    },
+    "VarFileInfo": {
+        "Translation": {
+            "LangID": "0409",
+            "CharsetID": "04B0"
+        }
+    },
+    "IconPath": "",
+    "ManifestPath": ""
+}

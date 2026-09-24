@@ -1,0 +1,45 @@
+# ── Kifaa Phishing Simulation Mail Relay ────────────────────────────────────
+compatibility_level = 3.6
+# Self-hosted Postfix that delivers directly to recipient MX servers.
+# Accepts mail only from internal Docker networks (no open relay).
+
+# Identity — use the real domain so HELO is believable
+myhostname = kifaa.kenyanut.com
+mydomain = kenyanut.com
+myorigin = $myhostname
+
+# Listen on all interfaces inside the container
+inet_interfaces = all
+inet_protocols = ipv4
+
+# Trust internal Docker bridge ranges — API container connects here
+mynetworks = 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+
+# Direct MX delivery — no upstream relay
+relayhost =
+
+# Restrictions: only allow relay from trusted networks
+smtpd_recipient_restrictions = permit_mynetworks, reject
+smtpd_relay_restrictions = permit_mynetworks, reject
+
+# Disable all local delivery (this is a relay-only server)
+local_recipient_maps =
+local_transport = error:no local delivery
+mydestination =
+
+# Outbound TLS (opportunistic — try TLS, fall back to plain)
+smtp_tls_security_level = may
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+smtp_tls_loglevel = 1
+
+# Reasonable queue/bounce timeouts for simulation
+maximal_queue_lifetime = 2h
+bounce_queue_lifetime = 1h
+maximal_backoff_time = 5m
+minimal_backoff_time = 1m
+
+# Message size (10 MB)
+message_size_limit = 10240000
+
+# Logging to stdout (Docker)
+maillog_file = /dev/stdout

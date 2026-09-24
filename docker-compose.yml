@@ -1,0 +1,157 @@
+version: '3.9'
+
+# ─── Docker secrets ───────────────────────────────────────────────────────────
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password
+  api_secret_key:
+    file: ./secrets/api_secret_key
+  agent_registration_secret:
+    file: ./secrets/agent_registration_secret
+  fernet_key:
+    file: ./secrets/fernet_key
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: kifaa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./server/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kifaa-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kifaa-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: timescaledb
+    secrets:
+      - postgres_password
+      - api_secret_key
+      - agent_registration_secret
+      - fernet_key
+    volumes:
+      - ./server:/app
+      - ./ssl:/app/ssl
+      - ./agent/builds:/app/static/agent-builds
+      - ./data/backups:/app/backups
+      - ./data/logs:/app/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kifaa-worker
+    restart: unless-stopped
+    command: celery -A api.workers.celery_app worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: timescaledb
+    secrets:
+      - postgres_password
+      - api_secret_key
+      - agent_registration_secret
+      - fernet_key
+    volumes:
+      - ./server:/app
+      - ./ssl:/app/ssl
+      - ./data/backups:/app/backups
+      - ./data/logs:/app/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kifaa-beat
+    restart: unless-stopped
+    command: celery -A api.workers.celery_app beat --loglevel=info
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: timescaledb
+    secrets:
+      - postgres_password
+      - api_secret_key
+      - agent_registration_secret
+    volumes:
+      - ./server:/app
+    depends_on:
+      - redis
+      - timescaledb
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    container_name: kifaa-frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+    depends_on:
+      - api
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: kifaa-nginx
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl/certs:/etc/nginx/ssl/certs:ro
+      - ./ssl/private:/etc/nginx/ssl/private:ro
+      - ./agent/builds:/usr/share/nginx/html/downloads:ro
+    depends_on:
+      - api
+      - frontend
