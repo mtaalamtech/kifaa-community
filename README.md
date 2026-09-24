@@ -180,7 +180,7 @@ docker exec kifaa-db pg_dump -U kifaa kifaa | gzip > kifaa_backup_$(date +%Y%m%d
 | Phishing simulation | — | ✅ |
 | RDP session reporting | — | ✅ |
 
-**Upgrade to Enterprise:** contact [info@kenyanut.com](mailto:info@kenyanut.com) or visit [kifaa.kenyanut.com](https://kifaa.kenyanut.com).
+**Upgrade to Enterprise:** contact [info@mtaalamtech.com](mailto:info@mtaalamtech.com) or visit [mtaalamtech.com/software/kifaa](https://mtaalamtech.com/software/kifaa).
 
 ---
 
@@ -219,7 +219,7 @@ docker exec kifaa-db psql -U kifaa -d kifaa \
 
 - **Bug reports & feature requests:** [GitHub Issues](https://github.com/mtaalamtech/kifaa-community/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/mtaalamtech/kifaa-community/discussions)
-- **Enterprise enquiries:** [info@kenyanut.com](mailto:info@kenyanut.com)
+- **Enterprise enquiries:** [info@mtaalamtech.com](mailto:info@mtaalamtech.com)
 
 ---
 
